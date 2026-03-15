@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCOC Wordle - Marvel Contest of Champions Word Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-primary: #0a0a1a;
+    --bg-secondary: #12122a;
+    --bg-tile: #1a1a3a;
+    --border-tile: #3a3a5a;
+    --text-primary: #f0f0f0;
+    --text-secondary: #a0a0b0;
+    --correct: #2d8a4e;
+    --present: #b59f3b;
+    --absent: #3a3a4a;
+    --key-bg: #4a4a6a;
+    --marvel-red: #e62429;
+    --marvel-gold: #f0c040;
+    --glow-red: rgba(230, 36, 41, 0.3);
+    --glow-gold: rgba(240, 192, 64, 0.2);
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 0%, var(--glow-red) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, var(--glow-gold) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 500px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 2px solid var(--marvel-red);
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .logo h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 4px;
+    background: linear-gradient(135deg, var(--marvel-red), var(--marvel-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    line-height: 1;
+  }
+
+  .logo .subtitle {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s;
+    position: absolute;
+  }
+  .header-btn:hover { color: var(--text-primary); }
+  .btn-help { left: 20px; }
+  .btn-stats { right: 20px; }
+
+  #game-container {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 0;
+  }
+
+  #board {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+    flex-shrink: 0;
+  }
+
+  .row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .tile {
+    width: 58px;
+    height: 58px;
+    border: 2px solid var(--border-tile);
+    background: var(--bg-tile);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    transition: transform 0.1s, border-color 0.2s;
+    border-radius: 4px;
+  }
+
+  .tile.filled {
+    border-color: #6a6a8a;
+    animation: pop 0.1s ease;
+  }
+
+  .tile.reveal {
+    animation: flip 0.5s ease forwards;
+  }
+
+  .tile.correct {
+    background: var(--correct);
+    border-color: var(--correct);
+  }
+  .tile.present {
+    background: var(--present);
+    border-color: var(--present);
+  }
+  .tile.absent {
+    background: var(--absent);
+    border-color: var(--absent);
+  }
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes flip {
+    0% { transform: rotateX(0deg); }
+    45% { transform: rotateX(90deg); }
+    55% { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-20px); }
+    60% { transform: translateY(-10px); }
+  }
+
+  .row.shake {
+    animation: shake 0.4s ease;
+  }
+
+  .tile.win {
+    animation: bounce 0.6s ease;
+  }
+
+  #keyboard {
+    padding: 10px 8px;
+    width: 100%;
+    max-width: 500px;
+    flex-shrink: 0;
+  }
+
+  .kb-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+
+  .key {
+    height: 52px;
+    min-width: 32px;
+    padding: 0 8px;
+    border: none;
+    border-radius: 6px;
+    background: var(--key-bg);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.1s;
+    text-transform: uppercase;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .key:active { transform: scale(0.95); }
+  .key.wide { min-width: 56px; font-size: 0.7rem; letter-spacing: 0.5px; }
+  .key.correct { background: var(--correct); }
+  .key.present { background: var(--present); }
+  .key.absent { background: var(--absent); }
+
+  #message-container {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .message {
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    animation: fadeIn 0.2s ease;
+    pointer-events: auto;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+
+  .modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-tile);
+    border-radius: 12px;
+    padding: 28px 24px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .modal h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 2px;
+    color: var(--marvel-gold);
+    margin-bottom: 16px;
+  }
+
+  .modal p {
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .modal .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+
+  .example-row {
+    display: flex;
+    gap: 5px;
+    margin: 10px 0;
+  }
+
+  .example-tile {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    border: 2px solid var(--border-tile);
+    border-radius: 4px;
+    background: var(--bg-tile);
+    color: var(--text-primary);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+    text-align: center;
+  }
+
+  .stat-item .stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--text-primary);
+  }
+
+  .stat-item .stat-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .bar-chart {
+    margin: 12px 0;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+    font-size: 0.8rem;
+  }
+
+  .bar-label {
+    width: 12px;
+    text-align: right;
+    color: var(--text-secondary);
+  }
+
+  .bar {
+    height: 20px;
+    min-width: 20px;
+    background: var(--absent);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 6px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: width 0.5s ease;
+  }
+
+  .bar.highlight {
+    background: var(--correct);
+  }
+
+  .word-definition {
+    margin-top: 16px;
+    padding: 14px;
+    background: rgba(230, 36, 41, 0.08);
+    border: 1px solid rgba(230, 36, 41, 0.2);
+    border-radius: 8px;
+  }
+
+  .word-definition .word {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--marvel-gold);
+    letter-spacing: 3px;
+  }
+
+  .word-definition .def {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .new-game-btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--marvel-red), #c41e22);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+  }
+
+  .new-game-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 20px var(--glow-red);
+  }
+
+  .mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    justify-content: center;
+  }
+
+  .mode-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border-tile);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    background: var(--marvel-red);
+    border-color: var(--marvel-red);
+    color: white;
+  }
+
+  @media (max-width: 400px) {
+    .tile { width: 50px; height: 50px; font-size: 1.7rem; }
+    .key { height: 46px; min-width: 26px; font-size: 0.78rem; }
+    .key.wide { min-width: 48px; }
+    header { padding: 12px 16px; }
+    .logo h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="header-btn btn-help" onclick="showModal('help')" aria-label="Help">?</button>
+  <div class="logo">
+    <h1>MCOC WORDLE</h1>
+    <span class="subtitle">Contest of Champions</span>
+  </div>
+  <button class="header-btn btn-stats" onclick="showModal('stats')" aria-label="Stats">&#9776;</button>
+</header>
+
+<div id="game-container">
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-daily" onclick="setMode('daily')">Daily</button>
+    <button class="mode-btn" id="btn-practice" onclick="setMode('practice')">Practice</button>
+  </div>
+  <div id="board"></div>
+</div>
+
+<div id="keyboard">
+  <div class="kb-row" id="kb-row-0"></div>
+  <div class="kb-row" id="kb-row-1"></div>
+  <div class="kb-row" id="kb-row-2"></div>
+</div>
+
+<div id="message-container"></div>
+
+<!-- Help Modal -->
+<div class="modal-overlay" id="modal-help">
+  <div class="modal">
+    <button class="close-btn" onclick="hideModal('help')">&times;</button>
+    <h2>How to Play</h2>
+    <p>Guess the <strong>MCOC term</strong> in 6 tries. Each guess must be a valid 5-letter word.</p>
+    <p>After each guess, the tiles will change color to show how close your guess was.</p>
+
+    <div class="example-row">
+      <div class="example-tile" style="background:var(--correct);border-color:var(--correct)">P</div>
+      <div class="example-tile">A</div>
+      <div class="example-tile">R</div>
+      <div class="example-tile">R</div>
+      <div class="example-tile">Y</div>
+    </div>
+    <p><strong style="color:var(--correct)">P</strong> is in the word and in the correct spot.</p>
+
+    <div class="example-row">
+      <div class="example-tile">B</div>
+      <div class="example-tile" style="background:var(--present);border-color:var(--present)">L</div>
+      <div class="example-tile">E</div>
+      <div class="example-tile">E</div>
+      <div class="example-tile">D</div>
+    </div>
+    <p><strong style="color:var(--present)">L</strong> is in the word but in the wrong spot.</p>
+
+    <div class="example-row">
+      <div class="example-tile">B</div>
+      <div class="example-tile">L</div>
+      <div class="example-tile">O</div>
+      <div class="example-tile">C</div>
+      <div class="example-tile" style="background:var(--absent);border-color:var(--absent)">K</div>
+    </div>
+    <p><strong style="color:var(--text-secondary)">K</strong> is not in the word at all.</p>
+
+    <p style="margin-top:16px; color:var(--marvel-gold); font-weight:600;">Words include MCOC terms, champion names, and Marvel universe vocabulary!</p>
+  </div>
+</div>
+
+<!-- Stats Modal -->
+<div class="modal-overlay" id="modal-stats">
+  <div class="modal">
+    <button class="close-btn" onclick="hideModal('stats')">&times;</button>
+    <h2>Statistics</h2>
+    <div class="stats-grid" id="stats-grid"></div>
+    <h2>Guess Distribution</h2>
+    <div class="bar-chart" id="bar-chart"></div>
+    <div id="end-game-info"></div>
+  </div>
+</div>
+
+<script>
+// ── MCOC Word List with definitions ──
+const WORDS = [
+  { word: "PARRY", def: "A well-timed block that stuns the opponent, one of the most essential masteries in MCOC." },
+  { word: "EVADE", def: "A champion's ability to dodge an incoming attack, avoiding all damage." },
+  { word: "BLEED", def: "A damage-over-time debuff that deals physical damage, ignoring armor." },
+  { word: "ARMOR", def: "A buff that reduces incoming damage from physical attacks." },
+  { word: "HEAVY", def: "A charged attack performed by holding the attack button — can knock down opponents." },
+  { word: "COMBO", def: "A series of consecutive hits. A 5-hit combo is the bread and butter of MCOC fighting." },
+  { word: "DEGEN", def: "Short for Degeneration — a passive damage effect that bypasses all defensive abilities." },
+  { word: "REGEN", def: "Short for Regeneration — a buff that restores health over time." },
+  { word: "ARENA", def: "A game mode where you fight repeatedly to earn milestone and rank rewards." },
+  { word: "QUEST", def: "Story or Event content where you explore maps and fight along a path." },
+  { word: "POWER", def: "The resource that fills up during a fight, enabling you to launch Special Attacks." },
+  { word: "DRAIN", def: "An ability that removes power from the opponent's power meter." },
+  { word: "SHOCK", def: "An energy damage-over-time debuff, dealing damage that bypasses physical resistance." },
+  { word: "GHOST", def: "A Tech champion famous for her phasing ability, making her nearly untouchable." },
+  { word: "ROGUE", def: "A Mutant champion who can steal buffs from opponents with her heavy attacks." },
+  { word: "STORM", def: "A Mutant champion who commands weather — lightning and wind at her fingertips." },
+  { word: "BLADE", def: "A Skill champion and vampire hunter. Danger Sense makes him a top-tier champion." },
+  { word: "HAVOK", def: "A Mutant champion who builds plasma charges and unleashes devastating feedback damage." },
+  { word: "MAGIK", def: "A Mystic champion with Limbo and power lock, the queen of power control." },
+  { word: "VENOM", def: "A Cosmic champion — a symbiote with armor breaks and true strike on his kit." },
+  { word: "RHINO", def: "A Science champion known for his unstoppable charge and physical resistance." },
+  { word: "TORCH", def: "Human Torch — a Science champion with nova flame and incinerate immunity." },
+  { word: "OMEGA", def: "Omega Red — a Mutant champion with death spores and devastating tentacle attacks." },
+  { word: "KNULL", def: "The King in Black — a Cosmic champion and creator of the symbiotes." },
+  { word: "MORDO", def: "A Mystic champion who punishes Dexterity users with his astral evade and power gain." },
+  { word: "AEGON", def: "Aegon the Conqueror — a Skill champion who ramps up with a persistent hit counter." },
+  { word: "VIGOR", def: "A node or buff that grants regeneration when a champion reaches low health." },
+  { word: "TAUNT", def: "A debuff that increases the opponent's tendency to use Special Attacks." },
+  { word: "BLOCK", def: "A defensive maneuver that reduces damage taken from incoming attacks." },
+  { word: "NODES", def: "Special modifiers on quest/war maps that change the rules of a fight." },
+  { word: "CLASS", def: "One of six champion types: Cosmic, Tech, Mutant, Skill, Science, or Mystic." },
+  { word: "PHASE", def: "Ghost's phasing ability — when phasing, attacks pass through her harmlessly." },
+  { word: "CRITS", def: "Critical hits — attacks that deal bonus damage based on critical rating and damage." },
+  { word: "BOOST", def: "Consumable items that increase attack, health, or champion rating for a limited time." },
+  { word: "CHAMP", def: "Short for Champion — your playable fighters in the Contest." },
+  { word: "FIGHT", def: "The core gameplay — a 1v1 battle between two champions." },
+  { word: "RANKS", def: "Champion progression levels (Rank 1-5) that increase base stats." },
+  { word: "TITAN", def: "A difficulty tier in quests and events — tougher than Uncollected." },
+  { word: "GRIND", def: "Repeated gameplay to earn rewards, especially in Arena mode." },
+  { word: "VALOR", def: "Currency or rating gained in Battlegrounds to determine your league and rewards." },
+  { word: "STACK", def: "Accumulating multiple copies of a buff or debuff for increased effect." },
+  { word: "STUNS", def: "Effects that temporarily prevent the opponent from acting — key to MCOC offense." },
+  { word: "SUICI", def: "Short for Suicide masteries — Liquid Courage and Double Edge, high risk high reward." },
+  { word: "KABAM", def: "The game developer and publisher behind Marvel Contest of Champions." },
+  { word: "PROWL", def: "Black Panther's prowess — building up for devastating armor-piercing strikes." },
+  { word: "SPITE", def: "A war node where using a Special Attack gives the defender power gain." },
+  { word: "SURGE", def: "Power Surge — a sudden spike in power gain, often from nodes or abilities." },
+  { word: "TIMER", def: "The countdown clock in fights — run out and you lose the fight." },
+  { word: "HULKS", def: "The Hulk family of champions — Hulk, She-Hulk, Red Hulk, Immortal Hulk, and more." },
+  { word: "SIGIL", def: "A monthly subscription in MCOC that provides extra rewards and benefits." },
+  { word: "TOXIN", def: "A Cosmic symbiote champion with potent bleed and poison abilities." },
+  { word: "CHILL", def: "A cold-based debuff that reduces power gain and can stack into Frostbite." },
+  { word: "CROSS", def: "Crossbones — a Skill champion who converts debuffs into furies for big damage." },
+  { word: "MYSTIC", def: "One of six champion classes — masters of magic, nullify, and power control." },
+  { word: "MILES", def: "Miles Morales — a Science champion Spider-Man with evade and unblockable specials." },
+  { word: "GWENS", def: "Spider-Gwen and Ghost-Spider — Science/Skill champions with unique spider abilities." },
+  { word: "CABLE", def: "A Mutant champion with power control through degeneration and poison." },
+  { word: "MEDIC", def: "Recovery or healing-focused champion ability — staying alive through regeneration." },
+  { word: "HEALS", def: "Health recovery effects — regeneration, lifesteal, and willpower healing." },
+  { word: "DEATH", def: "Death immunity or Deathproof — abilities that prevent a champion from being KO'd." },
+  { word: "CRASH", def: "Crashing — when the game unexpectedly closes, costing you energy and progress." },
+  { word: "METAL", def: "Magneto's prey — ferromagnetic champions take extra damage from his abilities." }
+];
+
+// Valid 5-letter word check - we'll accept any 5-letter alpha string as a guess
+// but MCOC answers come only from our curated list
+const ANSWER_WORDS = WORDS.map(w => w.word);
+
+// ── Game State ──
+let currentMode = 'daily';
+let answer = '';
+let answerDef = '';
+let guesses = [];
+let currentGuess = '';
+let gameOver = false;
+let currentRow = 0;
+const MAX_GUESSES = 6;
+const WORD_LENGTH = 5;
+
+// ── Stats ──
+function getStats() {
+  const s = localStorage.getItem('mcoc-wordle-stats');
+  return s ? JSON.parse(s) : { played: 0, won: 0, streak: 0, maxStreak: 0, dist: {1:0,2:0,3:0,4:0,5:0,6:0} };
+}
+
+function saveStats(stats) {
+  localStorage.setItem('mcoc-wordle-stats', JSON.stringify(stats));
+}
+
+// ── Daily word based on date ──
+function getDailyWord() {
+  const now = new Date();
+  const start = new Date(2026, 0, 1); // Jan 1, 2026
+  const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  const idx = ((diff % ANSWER_WORDS.length) + ANSWER_WORDS.length) % ANSWER_WORDS.length;
+  return WORDS[idx];
+}
+
+function getRandomWord() {
+  return WORDS[Math.floor(Math.random() * WORDS.length)];
+}
+
+// ── Board Setup ──
+function createBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (let r = 0; r < MAX_GUESSES; r++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = `row-${r}`;
+    for (let c = 0; c < WORD_LENGTH; c++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.id = `tile-${r}-${c}`;
+      row.appendChild(tile);
+    }
+    board.appendChild(row);
+  }
+}
+
+// ── Keyboard Setup ──
+const KB_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['ENTER','Z','X','C','V','B','N','M','DEL']
+];
+
+const keyStates = {};
+
+function createKeyboard() {
+  KB_ROWS.forEach((row, i) => {
+    const el = document.getElementById(`kb-row-${i}`);
+    el.innerHTML = '';
+    row.forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (k.length > 1 ? ' wide' : '');
+      btn.textContent = k === 'DEL' ? '⌫' : k;
+      btn.id = `key-${k}`;
+      btn.setAttribute('data-key', k);
+      btn.addEventListener('click', () => handleKey(k));
+      el.appendChild(btn);
+    });
+  });
+}
+
+function resetKeyboard() {
+  Object.keys(keyStates).forEach(k => delete keyStates[k]);
+  document.querySelectorAll('.key').forEach(el => {
+    el.classList.remove('correct', 'present', 'absent');
+  });
+}
+
+// ── Input Handling ──
+function handleKey(key) {
+  if (gameOver) return;
+
+  if (key === 'ENTER') {
+    submitGuess();
+  } else if (key === 'DEL' || key === 'BACKSPACE') {
+    if (currentGuess.length > 0) {
+      currentGuess = currentGuess.slice(0, -1);
+      updateBoard();
+    }
+  } else if (/^[A-Z]$/.test(key) && currentGuess.length < WORD_LENGTH) {
+    currentGuess += key;
+    updateBoard();
+    // Pop animation
+    const tile = document.getElementById(`tile-${currentRow}-${currentGuess.length - 1}`);
+    tile.classList.add('filled');
+  }
+}
+
+function updateBoard() {
+  for (let c = 0; c < WORD_LENGTH; c++) {
+    const tile = document.getElementById(`tile-${currentRow}-${c}`);
+    tile.textContent = currentGuess[c] || '';
+    if (!currentGuess[c]) tile.classList.remove('filled');
+  }
+}
+
+function submitGuess() {
+  if (currentGuess.length !== WORD_LENGTH) {
+    showMessage('Not enough letters');
+    shakeRow(currentRow);
+    return;
+  }
+
+  const guess = currentGuess.toUpperCase();
+  guesses.push(guess);
+
+  // Calculate result
+  const result = getResult(guess, answer);
+
+  // Animate reveal
+  revealRow(currentRow, guess, result, () => {
+    // Update keyboard colors
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      const letter = guess[i];
+      const state = result[i];
+      const prev = keyStates[letter];
+      if (state === 'correct' || (state === 'present' && prev !== 'correct') || (state === 'absent' && !prev)) {
+        keyStates[letter] = state;
+        const keyEl = document.getElementById(`key-${letter}`);
+        if (keyEl) {
+          keyEl.classList.remove('correct', 'present', 'absent');
+          keyEl.classList.add(state);
+        }
+      }
+    }
+
+    // Check win/loss
+    if (guess === answer) {
+      gameOver = true;
+      const winRow = currentRow;
+      winAnimation(winRow);
+      setTimeout(() => {
+        showMessage(['Incredible!', 'Amazing!', 'Great!', 'Nice!', 'Close one!', 'Phew!'][winRow] || 'Won!');
+        updateStats(true, winRow + 1);
+        showEndGame();
+      }, 400);
+      currentRow++;
+    } else if (currentRow >= MAX_GUESSES - 1) {
+      gameOver = true;
+      currentRow++;
+      setTimeout(() => {
+        showMessage(answer, 4000);
+        updateStats(false);
+        showEndGame();
+      }, 400);
+    } else {
+      currentRow++;
+      currentGuess = '';
+    }
+  });
+
+  currentGuess = '';
+}
+
+function getResult(guess, ans) {
+  const result = Array(WORD_LENGTH).fill('absent');
+  const ansArr = ans.split('');
+  const guessArr = guess.split('');
+
+  // First pass: correct letters
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (guessArr[i] === ansArr[i]) {
+      result[i] = 'correct';
+      ansArr[i] = null;
+      guessArr[i] = null;
+    }
+  }
+
+  // Second pass: present letters
+  for (let i = 0; i < WORD_LENGTH; i++) {
+    if (guessArr[i] === null) continue;
+    const idx = ansArr.indexOf(guessArr[i]);
+    if (idx !== -1) {
+      result[i] = 'present';
+      ansArr[idx] = null;
+    }
+  }
+
+  return result;
+}
+
+function revealRow(row, guess, result, callback) {
+  const tiles = [];
+  for (let c = 0; c < WORD_LENGTH; c++) {
+    tiles.push(document.getElementById(`tile-${row}-${c}`));
+  }
+
+  tiles.forEach((tile, i) => {
+    setTimeout(() => {
+      tile.classList.add('reveal');
+      // Apply color at midpoint of flip
+      setTimeout(() => {
+        tile.classList.add(result[i]);
+      }, 220);
+      if (i === WORD_LENGTH - 1 && callback) {
+        setTimeout(callback, 300);
+      }
+    }, i * 300);
+  });
+}
+
+function winAnimation(row) {
+  setTimeout(() => {
+    for (let c = 0; c < WORD_LENGTH; c++) {
+      const tile = document.getElementById(`tile-${row}-${c}`);
+      setTimeout(() => tile.classList.add('win'), c * 80);
+    }
+  }, WORD_LENGTH * 300 + 200);
+}
+
+function shakeRow(row) {
+  const el = document.getElementById(`row-${row}`);
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 500);
+}
+
+// ── Messages ──
+function showMessage(text, duration = 1500) {
+  const container = document.getElementById('message-container');
+  const msg = document.createElement('div');
+  msg.className = 'message';
+  msg.textContent = text;
+  container.appendChild(msg);
+  setTimeout(() => {
+    msg.style.transition = 'opacity 0.3s';
+    msg.style.opacity = '0';
+    setTimeout(() => msg.remove(), 300);
+  }, duration);
+}
+
+// ── Stats ──
+function updateStats(won, guessCount) {
+  const stats = getStats();
+  stats.played++;
+  if (won) {
+    stats.won++;
+    stats.streak++;
+    stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+    stats.dist[guessCount] = (stats.dist[guessCount] || 0) + 1;
+  } else {
+    stats.streak = 0;
+  }
+  saveStats(stats);
+}
+
+function renderStats() {
+  const stats = getStats();
+  const pct = stats.played > 0 ? Math.round((stats.won / stats.played) * 100) : 0;
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-item"><div class="stat-val">${stats.played}</div><div class="stat-label">Played</div></div>
+    <div class="stat-item"><div class="stat-val">${pct}</div><div class="stat-label">Win %</div></div>
+    <div class="stat-item"><div class="stat-val">${stats.streak}</div><div class="stat-label">Streak</div></div>
+    <div class="stat-item"><div class="stat-val">${stats.maxStreak}</div><div class="stat-label">Max Streak</div></div>
+  `;
+
+  const maxVal = Math.max(1, ...Object.values(stats.dist));
+  let barsHtml = '';
+  for (let i = 1; i <= 6; i++) {
+    const val = stats.dist[i] || 0;
+    const w = Math.max(8, (val / maxVal) * 100);
+    const hl = gameOver && guesses.length === i && guesses[i-1] === answer ? ' highlight' : '';
+    barsHtml += `<div class="bar-row"><div class="bar-label">${i}</div><div class="bar${hl}" style="width:${w}%">${val}</div></div>`;
+  }
+  document.getElementById('bar-chart').innerHTML = barsHtml;
+}
+
+function showEndGame() {
+  const wordData = WORDS.find(w => w.word === answer);
+  const def = wordData ? wordData.def : '';
+  const info = document.getElementById('end-game-info');
+  info.innerHTML = `
+    <div class="word-definition">
+      <div class="word">${answer}</div>
+      <div class="def">${def}</div>
+    </div>
+    <button class="new-game-btn" onclick="startPractice()">NEW GAME</button>
+  `;
+  setTimeout(() => showModal('stats'), 1800);
+}
+
+// ── Modals ──
+function showModal(name) {
+  if (name === 'stats') renderStats();
+  document.getElementById(`modal-${name}`).classList.add('active');
+}
+
+function hideModal(name) {
+  document.getElementById(`modal-${name}`).classList.remove('active');
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('active');
+  });
+});
+
+// ── Game Modes ──
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-daily').classList.toggle('active', mode === 'daily');
+  document.getElementById('btn-practice').classList.toggle('active', mode === 'practice');
+
+  if (mode === 'daily') {
+    startDaily();
+  } else {
+    startPractice();
+  }
+}
+
+function startDaily() {
+  const saved = localStorage.getItem('mcoc-wordle-daily');
+  const today = new Date().toDateString();
+  const wordData = getDailyWord();
+  answer = wordData.word;
+
+  if (saved) {
+    const data = JSON.parse(saved);
+    if (data.date === today && data.word === answer) {
+      // Restore saved game
+      resetGame();
+      data.guesses.forEach((g, i) => {
+        const result = getResult(g, answer);
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          const tile = document.getElementById(`tile-${i}-${c}`);
+          tile.textContent = g[c];
+          tile.classList.add(result[c]);
+        }
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          const letter = g[c];
+          const state = result[c];
+          const prev = keyStates[letter];
+          if (state === 'correct' || (state === 'present' && prev !== 'correct') || (state === 'absent' && !prev)) {
+            keyStates[letter] = state;
+            const keyEl = document.getElementById(`key-${letter}`);
+            if (keyEl) {
+              keyEl.classList.remove('correct', 'present', 'absent');
+              keyEl.classList.add(state);
+            }
+          }
+        }
+        guesses.push(g);
+        currentRow = i + 1;
+      });
+      if (data.gameOver) {
+        gameOver = true;
+      }
+      return;
+    }
+  }
+
+  resetGame();
+}
+
+function startPractice() {
+  hideModal('stats');
+  currentMode = 'practice';
+  document.getElementById('btn-daily').classList.remove('active');
+  document.getElementById('btn-practice').classList.add('active');
+  const wordData = getRandomWord();
+  answer = wordData.word;
+  resetGame();
+}
+
+function resetGame() {
+  guesses = [];
+  currentGuess = '';
+  gameOver = false;
+  currentRow = 0;
+  createBoard();
+  resetKeyboard();
+}
+
+// Save daily progress
+function saveDailyProgress() {
+  if (currentMode === 'daily') {
+    localStorage.setItem('mcoc-wordle-daily', JSON.stringify({
+      date: new Date().toDateString(),
+      word: answer,
+      guesses: guesses,
+      gameOver: gameOver
+    }));
+  }
+}
+
+// Override submitGuess to also save
+const _origSubmit = submitGuess;
+// Wrap via Proxy on guesses array
+const origPush = Array.prototype.push;
+
+// Save after each guess by watching state changes
+setInterval(() => {
+  if (currentMode === 'daily' && guesses.length > 0) {
+    saveDailyProgress();
+  }
+}, 1000);
+
+// ── Keyboard Events ──
+document.addEventListener('keydown', (e) => {
+  if (document.querySelector('.modal-overlay.active')) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+    }
+    return;
+  }
+
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  const key = e.key.toUpperCase();
+  if (key === 'ENTER') handleKey('ENTER');
+  else if (key === 'BACKSPACE') handleKey('DEL');
+  else if (/^[A-Z]$/.test(key)) handleKey(key);
+});
+
+// ── Init ──
+createBoard();
+createKeyboard();
+startDaily();
+</script>
+
+</body>
+</html>
